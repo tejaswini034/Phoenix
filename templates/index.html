@@ -24,7 +24,7 @@
                     </div>
                     <div class="logo-text">
                         <h1>Medical X-ray Classifier</h1>
-                        <p>AI-powered chest X-ray analysis with heatmap visualization</p>
+                        <p>AI-powered chest X-ray analysis for pneumonia detection</p>
                     </div>
                 </div>
                 <div class="health-status">
@@ -81,7 +81,6 @@
                     <li>Upload a chest X-ray image (AP or PA view recommended)</li>
                     <li>Click "Analyze X-ray" to process the image</li>
                     <li>Review the analysis results for pneumonia detection</li>
-                    <li>Use the heatmap overlay to see which areas influenced the AI's decision</li>
                     <li>For clinical diagnosis, always consult with a medical professional</li>
                 </ol>
             </div>
@@ -130,37 +129,6 @@
                     </div>
                 </div>
                 
-                <!-- NEW: Heatmap Visualization Section -->
-                <div class="heatmap-section" id="heatmapContainer" style="display: none;">
-                    <h3><i class="fas fa-fire"></i> AI Attention Heatmap</h3>
-                    <p class="heatmap-description">This visualization shows which areas of the X-ray most influenced the AI's decision. Red areas indicate higher attention.</p>
-                    
-                    <div class="image-comparison">
-                        <div class="image-container">
-                            <img src="" alt="Original X-ray" class="result-image" id="originalImage">
-                            <div class="heatmap-overlay" id="heatmapOverlay">
-                                <img src="temp_gradcam.png" alt="Heatmap" class="heatmap-image" id="heatmapImage">
-                            </div>
-                        </div>
-                        <div class="image-controls">
-                            <button class="btn btn-secondary" id="heatmapToggle" disabled>
-                                <i class="fas fa-eye"></i> Show Heatmap
-                            </button>
-                            <div class="heatmap-legend">
-                                <div class="legend-item">
-                                    <div class="legend-color low-attention"></div>
-                                    <span>Low Attention</span>
-                                </div>
-                                <div class="legend-item">
-                                    <div class="legend-color high-attention"></div>
-                                    <span>High Attention</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Original uploaded image display (keep this as fallback) -->
                 <div class="uploaded-image-container">
                     <h3><i class="fas fa-image"></i> Analyzed Image</h3>
                     <img src="" alt="Uploaded X-ray" class="result-image" id="uploadedImage">
@@ -178,7 +146,7 @@
 
     <footer>
         <div class="container">
-            <p>Medical X-ray Classifier v1.1 | AI with Heatmap Visualization</p>
+            <p>Medical X-ray Classifier v1.0 | For educational and research purposes only</p>
             <p>Always consult with a healthcare professional for medical diagnosis</p>
         </div>
     </footer>

@@ -350,6 +350,7 @@ main {
     font-weight: 700;
     color: var(--text-dark);
     margin: var(--spacing-sm) 0;
+    text-align: center;
 }
 
 .confidence-bar {
@@ -407,100 +408,6 @@ main {
     color: var(--success-green);
 }
 
-/* NEW: Heatmap Styles */
-.heatmap-section {
-    background-color: var(--white);
-    border-radius: var(--border-radius);
-    padding: var(--spacing-md);
-    margin-bottom: var(--spacing-md);
-    border: 1px solid var(--medium-gray);
-}
-
-.heatmap-description {
-    color: var(--dark-gray);
-    margin-bottom: var(--spacing-md);
-    font-size: 0.95rem;
-}
-
-.image-comparison {
-    position: relative;
-}
-
-.image-container {
-    position: relative;
-    width: 100%;
-    height: 300px;
-    margin-bottom: var(--spacing-md);
-    border-radius: var(--border-radius);
-    overflow: hidden;
-    background-color: var(--light-gray);
-    border: 1px solid var(--medium-gray);
-}
-
-.heatmap-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0.7;
-    mix-blend-mode: multiply;
-    pointer-events: none;
-    display: none;
-}
-
-.heatmap-image {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-
-.image-controls {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--spacing-md);
-}
-
-.heatmap-legend {
-    display: flex;
-    gap: var(--spacing-lg);
-}
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.legend-color {
-    width: 20px;
-    height: 20px;
-    border-radius: 4px;
-}
-
-.low-attention {
-    background: linear-gradient(to right, #0575E6, #00F260); /* Blue to Green */
-}
-
-.high-attention {
-    background: linear-gradient(to right, #FF512F, #F09819); /* Orange to Red */
-}
-
-/* Update for heatmap toggle button active state */
-#heatmapToggle.active {
-    background-color: var(--primary-blue);
-    color: var(--white);
-}
-
-/* Ensure images are properly sized */
-.result-image, .heatmap-image {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-
 /* Footer */
 footer {
     margin-top: var(--spacing-xl);
@@ -525,18 +432,5 @@ footer {
     
     .upload-area {
         padding: var(--spacing-lg);
-    }
-    
-    .image-container {
-        height: 250px;
-    }
-    
-    .image-controls {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .heatmap-legend {
-        justify-content: center;
     }
 }

@@ -25,17 +25,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const uploadedImage = document.getElementById('uploadedImage');
     const resultTimestamp = document.getElementById('resultTimestamp');
     
-    // NEW: Heatmap elements
-    const heatmapContainer = document.getElementById('heatmapContainer');
-    const heatmapImage = document.getElementById('heatmapImage');
-    const heatmapToggle = document.getElementById('heatmapToggle');
-    const heatmapOverlay = document.getElementById('heatmapOverlay');
-    const originalImage = document.getElementById('originalImage');
-    
     // Current state
     let currentFile = null;
-    let currentHeatmapPath = null;
-    let isHeatmapVisible = false;
     
     // Event Listeners
     uploadArea.addEventListener('click', () => fileInput.click());
@@ -46,11 +37,6 @@ document.addEventListener('DOMContentLoaded', function() {
     fileInput.addEventListener('change', handleFileSelect);
     analyzeBtn.addEventListener('click', handleAnalyze);
     clearBtn.addEventListener('click', handleClear);
-    
-    // NEW: Heatmap toggle event
-    if (heatmapToggle) {
-        heatmapToggle.addEventListener('click', toggleHeatmap);
-    }
     
     // File handling functions
     function handleDragOver(e) {
@@ -107,18 +93,14 @@ document.addEventListener('DOMContentLoaded', function() {
             filePreview.src = e.target.result;
             filePreview.classList.add('active');
             uploadedImage.src = e.target.result;
-            if (originalImage) {
-                originalImage.src = e.target.result;
-            }
         };
         reader.readAsDataURL(file);
         
         // Enable analyze button
         analyzeBtn.disabled = false;
         
-        // Hide previous results and heatmap
+        // Hide previous results
         hideResults();
-        hideHeatmap();
         hideAlert();
     }
     
@@ -161,7 +143,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Clear button handler
     function handleClear() {
         currentFile = null;
-        currentHeatmapPath = null;
         fileInput.value = '';
         fileName.textContent = '';
         filePreview.src = '';
@@ -169,123 +150,68 @@ document.addEventListener('DOMContentLoaded', function() {
         fileInfo.classList.remove('active');
         analyzeBtn.disabled = true;
         hideResults();
-        hideHeatmap();
         hideAlert();
     }
     
-    // NEW: Heatmap toggle function
-    function toggleHeatmap() {
-        if (!currentHeatmapPath) return;
+    // Display results from backend
+    function displayResults(data) {
+        // Update binary prediction
+        const binaryPred = data.binary.prediction;
+        const binaryConf = data.binary.confidence * 100;
         
-        isHeatmapVisible = !isHeatmapVisible;
+        binaryPrediction.textContent = binaryPred;
+        binaryConfidence.textContent = `${binaryConf.toFixed(1)}%`;
+        binaryConfidenceFill.style.width = `${binaryConf}%`;
         
-        if (isHeatmapVisible) {
-            heatmapOverlay.style.display = 'block';
-            heatmapToggle.innerHTML = '<i class="fas fa-eye-slash"></i> Hide Heatmap';
-            heatmapToggle.classList.add('active');
+        // Update confidence value above progress bar
+        const binaryConfidenceValue = document.getElementById('binaryConfidenceValue');
+        if (binaryConfidenceValue) {
+            binaryConfidenceValue.textContent = `${binaryConf.toFixed(1)}%`;
+        }
+        
+        // Set card class based on prediction
+        const binaryCard = document.querySelector('.result-card:nth-child(1)');
+        binaryCard.classList.remove('normal', 'pneumonia');
+        binaryCard.classList.add(binaryPred.toLowerCase());
+        
+        // Set confidence color
+        setConfidenceColor(binaryConfidence, binaryConf);
+        setConfidenceBarColor(binaryConfidenceFill, binaryConf);
+        
+        // Update subtype if present
+        if (data.subtype && data.subtype.prediction) {
+            const subtypePred = data.subtype.prediction;
+            const subtypeConf = data.subtype.confidence * 100;
+            
+            subtypePrediction.textContent = subtypePred;
+            subtypeConfidence.textContent = `${subtypeConf.toFixed(1)}%`;
+            subtypeConfidenceFill.style.width = `${subtypeConf}%`;
+            
+            // Update subtype confidence value above progress bar
+            const subtypeConfidenceValue = document.getElementById('subtypeConfidenceValue');
+            if (subtypeConfidenceValue) {
+                subtypeConfidenceValue.textContent = `${subtypeConf.toFixed(1)}%`;
+            }
+            
+            // Set confidence color for subtype
+            setConfidenceColor(subtypeConfidence, subtypeConf);
+            setConfidenceBarColor(subtypeConfidenceFill, subtypeConf);
+            
+            subtypeCard.style.display = 'block';
         } else {
-            heatmapOverlay.style.display = 'none';
-            heatmapToggle.innerHTML = '<i class="fas fa-eye"></i> Show Heatmap';
-            heatmapToggle.classList.remove('active');
+            subtypeCard.style.display = 'none';
         }
+        
+        // Update timestamp
+        if (data.timestamp) {
+            const date = new Date(data.timestamp);
+            resultTimestamp.textContent = `Analyzed at ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} on ${date.toLocaleDateString()}`;
+        }
+        
+        // Show results section
+        resultsPlaceholder.style.display = 'none';
+        resultsContent.classList.add('active');
     }
-    
-    // NEW: Hide heatmap function
-    function hideHeatmap() {
-        if (heatmapOverlay) {
-            heatmapOverlay.style.display = 'none';
-        }
-        if (heatmapToggle) {
-            heatmapToggle.innerHTML = '<i class="fas fa-eye"></i> Show Heatmap';
-            heatmapToggle.classList.remove('active');
-            heatmapToggle.disabled = true;
-        }
-        isHeatmapVisible = false;
-    }
-    
-// Display results from backend
-function displayResults(data) {
-    // Update binary prediction
-    const binaryPred = data.binary.prediction;
-    const binaryConf = data.binary.confidence * 100;
-    
-    // UPDATE BOTH PERCENTAGE DISPLAYS
-    binaryPrediction.textContent = binaryPred;
-    binaryConfidence.textContent = `${binaryConf.toFixed(1)}%`;
-    
-    // NEW: Also update the confidence value above the progress bar
-    const binaryConfidenceValue = document.getElementById('binaryConfidenceValue');
-    if (binaryConfidenceValue) {
-        binaryConfidenceValue.textContent = `${binaryConf.toFixed(1)}%`;
-    }
-    
-    binaryConfidenceFill.style.width = `${binaryConf}%`;
-    
-    // Set card class based on prediction
-    const binaryCard = document.querySelector('.result-card:nth-child(1)');
-    binaryCard.classList.remove('normal', 'pneumonia');
-    binaryCard.classList.add(binaryPred.toLowerCase());
-    
-    // Set confidence color
-    setConfidenceColor(binaryConfidence, binaryConf);
-    setConfidenceBarColor(binaryConfidenceFill, binaryConf);
-    
-    // Update subtype if present
-    if (data.subtype && data.subtype.prediction) {
-        const subtypePred = data.subtype.prediction;
-        const subtypeConf = data.subtype.confidence * 100;
-        
-        subtypePrediction.textContent = subtypePred;
-        subtypeConfidence.textContent = `${subtypeConf.toFixed(1)}%`;
-        
-        // NEW: Also update the subtype confidence value above progress bar
-        const subtypeConfidenceValue = document.getElementById('subtypeConfidenceValue');
-        if (subtypeConfidenceValue) {
-            subtypeConfidenceValue.textContent = `${subtypeConf.toFixed(1)}%`;
-        }
-        
-        subtypeConfidenceFill.style.width = `${subtypeConf}%`;
-        
-        // Set confidence color for subtype
-        setConfidenceColor(subtypeConfidence, subtypeConf);
-        setConfidenceBarColor(subtypeConfidenceFill, subtypeConf);
-        
-        subtypeCard.style.display = 'block';
-    } else {
-        subtypeCard.style.display = 'none';
-    }
-    
-    // NEW: Handle heatmap if present
-    if (data.heatmap_path && data.heatmap_path.trim() !== '') {
-        currentHeatmapPath = data.heatmap_path;
-        heatmapImage.src = data.heatmap_path;
-        
-        // Show heatmap section
-        if (heatmapContainer) {
-            heatmapContainer.style.display = 'block';
-        }
-        
-        // Enable heatmap toggle button
-        if (heatmapToggle) {
-            heatmapToggle.disabled = false;
-        }
-    } else {
-        // Hide heatmap section if no heatmap
-        if (heatmapContainer) {
-            heatmapContainer.style.display = 'none';
-        }
-    }
-    
-    // Update timestamp
-    if (data.timestamp) {
-        const date = new Date(data.timestamp);
-        resultTimestamp.textContent = `Analyzed at ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} on ${date.toLocaleDateString()}`;
-    }
-    
-    // Show results section
-    resultsPlaceholder.style.display = 'none';
-    resultsContent.classList.add('active');
-}
     
     // Helper functions
     function setConfidenceColor(element, confidence) {
@@ -336,5 +262,4 @@ function displayResults(data) {
     
     // Initialize
     analyzeBtn.disabled = true;
-    hideHeatmap();
 });
