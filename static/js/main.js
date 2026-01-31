@@ -1,4 +1,4 @@
-// Medical X-ray Classifier - Frontend JavaScript
+// Medical X-ray Classifier - Frontend JavaScript with Heatmap
 
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
@@ -24,6 +24,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const subtypeConfidenceFill = document.getElementById('subtypeConfidenceFill');
     const uploadedImage = document.getElementById('uploadedImage');
     const resultTimestamp = document.getElementById('resultTimestamp');
+    
+    // Heatmap elements
+    const heatmapContainer = document.getElementById('heatmapContainer');
+    const heatmapImage = document.getElementById('heatmapImage');
+    const medicalAnalysis = document.getElementById('medicalAnalysis');
     
     // Current state
     let currentFile = null;
@@ -202,6 +207,33 @@ document.addEventListener('DOMContentLoaded', function() {
             subtypeCard.style.display = 'none';
         }
         
+        // Update heatmap if available
+        if (data.heatmap_available && data.heatmap_url) {
+            if (heatmapImage) {
+                heatmapImage.src = data.heatmap_url + '?t=' + new Date().getTime();
+                heatmapImage.style.display = 'block';
+            }
+            if (heatmapContainer) {
+                heatmapContainer.style.display = 'block';
+            }
+        } else {
+            if (heatmapImage) heatmapImage.style.display = 'none';
+            if (heatmapContainer) heatmapContainer.style.display = 'none';
+        }
+        
+        // Update medical analysis if available
+        if (data.medical_analysis && medicalAnalysis) {
+            medicalAnalysis.textContent = data.medical_analysis;
+            medicalAnalysis.style.display = 'block';
+        } else if (medicalAnalysis) {
+            medicalAnalysis.style.display = 'none';
+        }
+        
+        // Update uploaded image URL
+        if (data.uploaded_image_url) {
+            uploadedImage.src = data.uploaded_image_url + '?t=' + new Date().getTime();
+        }
+        
         // Update timestamp
         if (data.timestamp) {
             const date = new Date(data.timestamp);
@@ -258,6 +290,11 @@ document.addEventListener('DOMContentLoaded', function() {
     function hideResults() {
         resultsContent.classList.remove('active');
         resultsPlaceholder.style.display = 'block';
+        
+        // Hide heatmap and analysis
+        if (heatmapImage) heatmapImage.style.display = 'none';
+        if (heatmapContainer) heatmapContainer.style.display = 'none';
+        if (medicalAnalysis) medicalAnalysis.style.display = 'none';
     }
     
     // Initialize

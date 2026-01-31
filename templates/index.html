@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Medical X-ray Classifier</title>
+    <title>Medical X-ray Classifier with Grad-CAM</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🩻</text></svg>">
@@ -12,7 +12,7 @@
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-spinner"></div>
-        <div class="loading-text">Analyzing X-ray Image...</div>
+        <div class="loading-text">Analyzing X-ray Image with Grad-CAM...</div>
     </div>
 
     <header>
@@ -23,8 +23,8 @@
                         <i class="fas fa-stethoscope"></i>
                     </div>
                     <div class="logo-text">
-                        <h1>Medical X-ray Classifier</h1>
-                        <p>AI-powered chest X-ray analysis for pneumonia detection</p>
+                        <h1>Medical X-ray Classifier with Grad-CAM</h1>
+                        <p>AI-powered chest X-ray analysis with heatmap visualization</p>
                     </div>
                 </div>
                 <div class="health-status">
@@ -67,7 +67,7 @@
             <div class="button-group">
                 <button class="btn btn-primary" id="analyzeBtn" disabled>
                     <i class="fas fa-search btn-icon"></i>
-                    Analyze X-ray
+                    Analyze X-ray with Grad-CAM
                 </button>
                 <button class="btn btn-secondary" id="clearBtn">
                     <i class="fas fa-times btn-icon"></i>
@@ -79,8 +79,9 @@
                 <h3><i class="fas fa-info-circle"></i> How to use:</h3>
                 <ol>
                     <li>Upload a chest X-ray image (AP or PA view recommended)</li>
-                    <li>Click "Analyze X-ray" to process the image</li>
-                    <li>Review the analysis results for pneumonia detection</li>
+                    <li>Click "Analyze X-ray with Grad-CAM" to process the image</li>
+                    <li>Review the analysis results and heatmap visualization</li>
+                    <li>Red areas in heatmap show regions important for diagnosis</li>
                     <li>For clinical diagnosis, always consult with a medical professional</li>
                 </ol>
             </div>
@@ -101,6 +102,7 @@
             </div>
             
             <div class="results-content" id="resultsContent">
+                <!-- Diagnosis Results -->
                 <div class="result-card" id="binaryCard">
                     <div class="result-header">
                         <div class="result-title">Pneumonia Detection</div>
@@ -115,6 +117,7 @@
                     </div>
                 </div>
                 
+                <!-- Subtype Results -->
                 <div class="result-card" id="subtypeCard" style="display: none;">
                     <div class="result-header">
                         <div class="result-title">Pneumonia Subtype</div>
@@ -129,9 +132,31 @@
                     </div>
                 </div>
                 
+                <!-- Heatmap Visualization -->
+                <div class="result-card" id="heatmapContainer" style="display: none;">
+                    <div class="result-header">
+                        <div class="result-title">Grad-CAM Heatmap</div>
+                        <div class="result-title">AI Attention Visualization</div>
+                    </div>
+                    <div class="heatmap-explanation">
+                        <p><i class="fas fa-fire"></i> <strong>Red areas</strong> indicate regions the AI focuses on for diagnosis</p>
+                        <p><i class="fas fa-info-circle"></i> Heatmap shows which parts of the X-ray influenced the prediction</p>
+                    </div>
+                    <img src="" alt="Grad-CAM Heatmap" class="result-image" id="heatmapImage" style="display: none;">
+                </div>
+                
+                <!-- Original Image -->
                 <div class="uploaded-image-container">
                     <h3><i class="fas fa-image"></i> Analyzed Image</h3>
                     <img src="" alt="Uploaded X-ray" class="result-image" id="uploadedImage">
+                </div>
+                
+                <!-- Medical Analysis -->
+                <div class="result-card" id="medicalAnalysisCard" style="display: none;">
+                    <div class="result-header">
+                        <div class="result-title">Medical Pattern Analysis</div>
+                    </div>
+                    <pre class="medical-analysis" id="medicalAnalysis" style="white-space: pre-wrap; font-family: inherit; padding: 10px; background: #f8f9fa; border-radius: 5px;"></pre>
                 </div>
                 
                 <div class="result-timestamp" id="resultTimestamp"></div>
@@ -146,7 +171,7 @@
 
     <footer>
         <div class="container">
-            <p>Medical X-ray Classifier v1.0 | For educational and research purposes only</p>
+            <p>Medical X-ray Classifier with Grad-CAM v2.0 | For educational and research purposes only</p>
             <p>Always consult with a healthcare professional for medical diagnosis</p>
         </div>
     </footer>

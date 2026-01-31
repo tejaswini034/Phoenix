@@ -1,19 +1,35 @@
 import os
 import json
+import cv2
+import numpy as np
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 import uuid
+from PIL import Image
 
-# Try to import the model
+# Import the model
 try:
-    from models.temp_model import predict as model_predict
+    from models.temp_model import predict_with_heatmap, load_model
+    import torch
     MODEL_AVAILABLE = True
     print("✓ ML Model loaded successfully")
+    
+    # Load model once at startup
+    model, class_names = load_model("models/model.pth")
+    print(f"✓ Model loaded with classes: {class_names}")
+    
 except ImportError as e:
     MODEL_AVAILABLE = False
-    print(f"✗ Could not import temp_model.py: {e}")
-    print("  Using mock predictions instead")
+    print(f"✗ Could not import model: {e}")
+    print("  Please check temp_model.py exists in models/ folder")
+    exit(1)
+except Exception as e:
+    MODEL_AVAILABLE = False
+    print(f"✗ Error loading model: {e}")
+    import traceback
+    traceback.print_exc()
+    exit(1)
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -21,56 +37,46 @@ app = Flask(__name__)
 # Configuration
 app.config['SECRET_KEY'] = 'your-secret-key-change-in-production'
 app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['HEATMAP_FOLDER'] = 'static/heatmaps'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'bmp', 'gif'}
 
-# Ensure upload folder exists
+# Ensure folders exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['HEATMAP_FOLDER'], exist_ok=True)
 
 def allowed_file(filename):
     """Check if the file has an allowed extension"""
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-def map_temp_model_output(model_output):
+def map_model_output(model_output):
     """
-    Convert temp_model.py output format to frontend format
-    
-    temp_model.py returns:
-    {
-        "label": "Normal", "Bacterial Pneumonia", or "Viral Pneumonia"
-        "confidence": 0.95
-    }
-    
-    Frontend expects:
-    {
-        "binary": {
-            "prediction": "Normal" or "Pneumonia",
-            "confidence": 0.91
-        },
-        "subtype": {
-            "prediction": "Bacterial" or "Viral" or null,
-            "confidence": 0.87
-        }
-    }
+    Convert model output format to frontend format
     """
-    label = model_output.get("label", "").lower()
+    prediction_name = model_output.get("prediction_name", "").lower()
     confidence = model_output.get("confidence", 0.0)
     
     response = {
         "binary": None,
-        "subtype": None
+        "subtype": None,
+        "heatmap_url": model_output.get("heatmap_url", None),
+        "heatmap_available": model_output.get("heatmap_available", False),
+        "probabilities": model_output.get("probabilities", []),
+        "consolidation_score": model_output.get("consolidation_score", 0),
+        "glass_opacity_score": model_output.get("glass_opacity_score", 0),
+        "medical_analysis": model_output.get("medical_analysis", "")
     }
     
     # Map based on label
-    if "normal" in label:
+    if "normal" in prediction_name:
         response["binary"] = {
             "prediction": "Normal",
             "confidence": confidence
         }
         response["subtype"] = None
     
-    elif "bacterial" in label:
+    elif "bacterial" in prediction_name:
         response["binary"] = {
             "prediction": "Pneumonia",
             "confidence": confidence
@@ -80,7 +86,7 @@ def map_temp_model_output(model_output):
             "confidence": confidence
         }
     
-    elif "viral" in label:
+    elif "viral" in prediction_name:
         response["binary"] = {
             "prediction": "Pneumonia",
             "confidence": confidence
@@ -110,7 +116,7 @@ def index():
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    """Handle image upload and return prediction results"""
+    """Handle image upload and return prediction results with heatmap"""
     
     # Check if file was uploaded
     if 'file' not in request.files:
@@ -135,71 +141,63 @@ def predict():
         # Save uploaded file
         file.save(filepath)
         
-        if MODEL_AVAILABLE:
-            ########################################################################
-            # REAL ML INFERENCE - Using temp_model.py
-            ########################################################################
-            try:
-                # Call temp_model.predict() function
-                model_output = model_predict(filepath)
-                
-                # Convert to frontend format
-                response_data = map_temp_model_output(model_output)
-                
-                print(f"✓ Model prediction: {model_output['label']} ({model_output['confidence']:.2%})")
-                
-            except Exception as model_error:
-                # Fall back to mock data
-                response_data = get_mock_response()
+        if not MODEL_AVAILABLE or model is None:
+            return jsonify({'error': 'ML model is not available. Please check server logs.'}), 500
         
-        else:
-            ########################################################################
-            # FALLBACK: Mock data when model is not available
-            ########################################################################
-            print("⚠ Using mock data (model not available)")
-            response_data = get_mock_response()
+        ########################################################################
+        # REAL ML INFERENCE WITH GRAD-CAM
+        ########################################################################
+        try:
+            # Use the predict_with_heatmap function from temp_model
+            model_output = predict_with_heatmap(filepath, model, class_names)
+            
+            # Generate heatmap filename
+            heatmap_filename = f"heatmap_{uuid.uuid4().hex}.png"
+            heatmap_path = os.path.join(app.config['HEATMAP_FOLDER'], heatmap_filename)
+            
+            # If heatmap was generated, save it
+            if model_output.get("heatmap_available") and model_output.get("heatmap_img") is not None:
+                heatmap_img = model_output["heatmap_img"]
+                
+                # Save heatmap overlay image
+                if heatmap_img is not None and len(heatmap_img.shape) == 3:
+                    # Convert RGB to BGR for OpenCV save
+                    heatmap_bgr = cv2.cvtColor(heatmap_img, cv2.COLOR_RGB2BGR)
+                    cv2.imwrite(heatmap_path, heatmap_bgr)
+                    model_output["heatmap_url"] = f"/static/heatmaps/{heatmap_filename}"
+                    print(f"✓ Heatmap saved to: {heatmap_path}")
+                else:
+                    model_output["heatmap_url"] = None
+                    print("⚠ Heatmap image format incorrect")
+            else:
+                model_output["heatmap_url"] = None
+                print("⚠ No heatmap generated")
+            
+            # Convert to frontend format
+            response_data = map_model_output(model_output)
+            
+            print(f"✓ Model prediction: {model_output['prediction_name']} ({model_output['confidence']:.2%})")
+            
+        except Exception as model_error:
+            print(f"❌ Model error: {model_error}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'error': f'Model prediction failed: {str(model_error)}'}), 500
         
         # Add metadata
         response_data.update({
             "filename": unique_filename,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "uploaded_image_url": f"/uploads/{unique_filename}"
         })
         
         return jsonify(response_data)
         
     except Exception as e:
         # Log error for debugging
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': f'An error occurred while processing the image: {str(e)}'}), 500
-
-def get_mock_response():
-    """Generate mock response for testing"""
-    import random
-    
-    # Randomly choose a scenario
-    scenarios = [
-        {"binary": "Normal", "subtype": None, "conf": round(random.uniform(0.85, 0.95), 2)},
-        {"binary": "Pneumonia", "subtype": "Bacterial", "conf": round(random.uniform(0.88, 0.98), 2)},
-        {"binary": "Pneumonia", "subtype": "Viral", "conf": round(random.uniform(0.82, 0.94), 2)},
-    ]
-    
-    scenario = random.choice(scenarios)
-    
-    response = {
-        "binary": {
-            "prediction": scenario["binary"],
-            "confidence": scenario["conf"]
-        }
-    }
-    
-    if scenario["subtype"]:
-        response["subtype"] = {
-            "prediction": scenario["subtype"],
-            "confidence": round(scenario["conf"] * random.uniform(0.85, 0.95), 2)
-        }
-    else:
-        response["subtype"] = None
-    
-    return response
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -210,18 +208,21 @@ def uploaded_file(filename):
 def health_check():
     """Health check endpoint"""
     return jsonify({
-        'status': 'healthy' if MODEL_AVAILABLE else 'degraded',
+        'status': 'healthy',
         'timestamp': datetime.now().isoformat(),
         'model_available': MODEL_AVAILABLE,
-        'message': 'ML model is ready' if MODEL_AVAILABLE else 'Running in mock mode'
+        'model_classes': class_names if MODEL_AVAILABLE else [],
+        'message': 'ML model is ready' if MODEL_AVAILABLE else 'Model not available'
     })
 
 if __name__ == '__main__':
     print("\n" + "="*50)
-    print("Medical X-ray Classifier")
+    print("Medical X-ray Classifier with Grad-CAM")
     print("="*50)
-    print(f"Model Status: {'✓ READY' if MODEL_AVAILABLE else '✗ NOT AVAILABLE (Using Mock)'}")
+    print(f"Model Status: {'✓ READY' if MODEL_AVAILABLE else '✗ NOT AVAILABLE'}")
+    print(f"Model Classes: {class_names if MODEL_AVAILABLE else 'N/A'}")
     print(f"Upload Folder: {app.config['UPLOAD_FOLDER']}")
+    print(f"Heatmap Folder: {app.config['HEATMAP_FOLDER']}")
     print(f"Server URL: http://localhost:5000")
     print("="*50 + "\n")
     
