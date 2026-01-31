@@ -15,75 +15,111 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 # =========================================================
-# CheXNet Medical Model with Grad-CAM support
+# CheXNet Medical Model with EXACT Code B Architecture
 # =========================================================
 class CheXNetMedicalModel(nn.Module):
     """
-    CheXNet-based model with Grad-CAM support
+    CheXNet-based model with EXACT Code B architecture
     """
 
     def __init__(self, num_classes=3):
         super().__init__()
 
-        # DenseNet-121 backbone (CheXNet)
-        self.backbone = models.densenet121(
+        # EXACT Code B: Load DenseNet-121 as base_model
+        self.base_model = models.densenet121(
             weights=models.DenseNet121_Weights.IMAGENET1K_V1
         )
 
-        self.features = self.backbone.features
-        self.feature_dim = self.backbone.classifier.in_features
-        
-        # Store activations and gradients for Grad-CAM
+        # EXACT Code B: Get the feature extractor
+        self.features = self.base_model.features
+
+        # EXACT Code B: Get the number of features
+        num_features = self.base_model.classifier.in_features
+
+        # EXACT Code B: Store activations and gradients for Grad-CAM
         self.gradients = None
         self.activations = None
         
-        # Register hooks
+        # EXACT Code B: Register hooks to the same feature layer
         self.features.register_forward_hook(self.save_activations)
         self.features.register_full_backward_hook(self.save_gradients)
 
-        # Pattern detectors
-        self.consolidation_detector = self._pattern_head()
-        self.glass_opacity_detector = self._pattern_head()
+        # EXACT Code B: 6 Pattern detectors with same names
+        self.pattern_detectors = nn.ModuleDict({
+            'consolidation': self._create_pattern_detector(num_features),
+            'ground_glass': self._create_pattern_detector(num_features),
+            'pleural_effusion': self._create_pattern_detector(num_features),
+            'pulmonary_edema': self._create_pattern_detector(num_features),
+            'nodular_opacities': self._create_pattern_detector(num_features),
+            'atelectasis': self._create_pattern_detector(num_features),
+        })
 
-        # Final classifier
-        self.classifier = nn.Sequential(
-            nn.Linear(self.feature_dim + 2, 256),
+        # EXACT Code B: Infection extent analyzer with same layers
+        self.infection_extent = nn.Sequential(
+            nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Flatten(),
+            nn.Linear(num_features, 128),  # EXACT: 128 units
             nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(256, num_classes)
+            nn.Linear(128, 1),  # EXACT: output single score
+            nn.Sigmoid()  # EXACT: Sigmoid activation
         )
 
-    def _pattern_head(self):
+        # EXACT Code B: Final classifier with same dimensions
+        self.classifier = nn.Sequential(
+            nn.Linear(num_features + len(self.pattern_detectors) + 1, 512),  # EXACT: 512 units
+            nn.ReLU(),
+            nn.Dropout(0.3),  # EXACT: 0.3 dropout
+            nn.Linear(512, num_classes)  # EXACT: 3 output classes
+        )
+
+    def _create_pattern_detector(self, in_features):
+        """EXACT Code B: Pattern detector creation"""
         return nn.Sequential(
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten(),
-            nn.Linear(self.feature_dim, 128),
+            nn.Linear(in_features, 64),  # EXACT: 64 units
             nn.ReLU(),
-            nn.Linear(128, 1),
-            nn.Sigmoid()
+            nn.Linear(64, 1),  # EXACT: output single score
+            nn.Sigmoid()  # EXACT: Sigmoid activation
         )
     
     def save_activations(self, module, input, output):
+        """EXACT Code B: Save activations hook"""
         self.activations = output
     
     def save_gradients(self, module, grad_input, grad_output):
+        """EXACT Code B: Save gradients hook"""
         self.gradients = grad_output[0]
 
     def forward(self, x):
+        """EXACT Code B: Forward pass with same computation order"""
+        # EXACT: Extract features
         features = self.features(x)
+
+        # EXACT: Global pooling
         pooled = F.adaptive_avg_pool2d(features, (1, 1))
-        flat = pooled.view(pooled.size(0), -1)
+        flattened = pooled.view(pooled.size(0), -1)
 
-        consolidation_score = self.consolidation_detector(features)
-        glass_opacity_score = self.glass_opacity_detector(features)
+        # EXACT: Get pattern scores in dictionary
+        pattern_scores = {}
+        pattern_list = []
 
-        combined = torch.cat(
-            [flat, consolidation_score, glass_opacity_score], dim=1
-        )
+        for name, detector in self.pattern_detectors.items():
+            score = detector(features)
+            pattern_scores[name] = score
+            pattern_list.append(score)
 
+        # EXACT: Get infection extent
+        infection_score = self.infection_extent(features)
+
+        # EXACT: Concatenation order: [flattened] + pattern_list + [infection_score]
+        combined = torch.cat([flattened] + pattern_list + [infection_score], dim=1)
+
+        # EXACT: Final classification
         output = self.classifier(combined)
 
-        return output, consolidation_score, glass_opacity_score
+        # EXACT Code B returns 4 values
+        return output, pattern_scores, infection_score, features
 
     def generate_gradcam(self, target_class=None):
         """Generate Grad-CAM heatmap"""
@@ -113,15 +149,55 @@ class CheXNetMedicalModel(nn.Module):
         
         return heatmap.cpu().detach().numpy()
 
-    def get_medical_analysis(self, consolidation_score, glass_opacity_score, prediction):
-        cons = consolidation_score.item()
-        glass = glass_opacity_score.item()
+    def get_medical_analysis(self, pattern_scores, infection_score, prediction, confidence):
+        """Medical analysis matching Code B structure"""
+        pattern_names = {
+            'consolidation': 'Consolidation',
+            'ground_glass': 'Ground-Glass Opacity',
+            'pleural_effusion': 'Pleural Effusion',
+            'pulmonary_edema': 'Pulmonary Edema',
+            'nodular_opacities': 'Nodular Opacities',
+            'atelectasis': 'Atelectasis',
+        }
 
         class_names = ['Normal', 'Bacterial Pneumonia', 'Viral Pneumonia']
-        analysis = "Medical Pattern Analysis:\n"
-        analysis += f"• Consolidation score: {cons:.3f}\n"
-        analysis += f"• Ground-glass opacity score: {glass:.3f}\n"
-        analysis += f"\nDiagnosis: {class_names[prediction]}\n"
+
+        analysis = "="*60 + "\n"
+        analysis += "MEDICAL PATTERN ANALYSIS\n"
+        analysis += "="*60 + "\n\n"
+
+        # Diagnosis
+        analysis += f"Diagnosis: {class_names[prediction]}\n"
+        analysis += f"Confidence: {confidence:.1%}\n"
+        analysis += f"Infection Extent: {infection_score.item():.1%}\n\n"
+
+        # Pattern detection
+        analysis += "Detected Patterns:\n"
+        significant_patterns = []
+        for name, score in pattern_scores.items():
+            if score.item() > 0.3:
+                significant_patterns.append((pattern_names[name], score.item()))
+
+        if significant_patterns:
+            significant_patterns.sort(key=lambda x: x[1], reverse=True)
+            for name, score in significant_patterns:
+                analysis += f"  • {name}: {score:.1%}\n"
+        else:
+            analysis += "  • No significant patterns detected\n"
+
+        # Medical interpretation
+        analysis += "\nMedical Interpretation:\n"
+        if prediction == 1:  # Bacterial
+            if pattern_scores['consolidation'].item() > 0.5:
+                analysis += "  • Lobar consolidation suggests bacterial pneumonia\n"
+            if pattern_scores['pleural_effusion'].item() > 0.3:
+                analysis += "  • Pleural effusion may indicate complications\n"
+
+        elif prediction == 2:  # Viral
+            if pattern_scores['ground_glass'].item() > 0.5:
+                analysis += "  • Ground-glass opacities suggest viral etiology\n"
+            if infection_score.item() > 0.5:
+                analysis += "  • Extensive involvement typical of viral pneumonia\n"
 
         return analysis
 
@@ -135,29 +211,26 @@ def load_model(model_path="models/model.pth"):
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Model not found at {model_path}")
 
+    # Create model with EXACT Code B architecture
     model = CheXNetMedicalModel(num_classes=3)
 
+    # Load checkpoint exactly as Code B does
     checkpoint = torch.load(model_path, map_location=device, weights_only=False)
 
+    # Extract state_dict exactly as Code B does
     if "model_state_dict" in checkpoint:
         state_dict = checkpoint["model_state_dict"]
     else:
         state_dict = checkpoint
 
-    # 🔥 Ignore mismatched classifier layers
-    filtered_state_dict = {
-        k: v for k, v in state_dict.items()
-        if not k.startswith("classifier.")
-    }
-
-    model.load_state_dict(filtered_state_dict, strict=False)
+    # Load with strict=True to ensure exact match
+    model.load_state_dict(state_dict, strict=True)
 
     model.to(device)
     model.eval()
 
     class_names = ['Normal', 'Bacterial Pneumonia', 'Viral Pneumonia']
     return model, class_names
-
 
 
 # =========================================================
@@ -174,7 +247,7 @@ transform = transforms.Compose([
 
 
 # =========================================================
-# Grad-CAM Heatmap Generation
+# Grad-CAM Heatmap Generation (Updated for 4 outputs)
 # =========================================================
 def generate_gradcam_heatmap(model, input_tensor, original_img, target_class):
     """
@@ -184,8 +257,8 @@ def generate_gradcam_heatmap(model, input_tensor, original_img, target_class):
         # Forward pass
         model.zero_grad()
         
-        # Get model output
-        output, _, _ = model(input_tensor)
+        # Get model output (now 4 outputs)
+        output, _, _, _ = model(input_tensor)
         
         # Calculate gradients
         one_hot = torch.zeros((1, output.shape[1])).to(device)
@@ -232,7 +305,7 @@ def generate_gradcam_heatmap(model, input_tensor, original_img, target_class):
 
 
 # =========================================================
-# Prediction Functions
+# Prediction Functions (Updated for 4 outputs)
 # =========================================================
 def predict(image_path):
     """Simple prediction function"""
@@ -257,9 +330,9 @@ def predict_with_heatmap(image_path, model, class_names):
         # Enable gradients
         input_tensor.requires_grad_(True)
         
-        # Forward pass
+        # Forward pass (now returns 4 values)
         model.zero_grad()
-        output, cons, glass = model(input_tensor)
+        output, pattern_scores, infection_score, _ = model(input_tensor)
         
         # Get prediction
         probs = F.softmax(output, dim=1)
@@ -275,7 +348,10 @@ def predict_with_heatmap(image_path, model, class_names):
         
         # Get medical analysis
         medical_analysis = model.get_medical_analysis(
-            cons[0], glass[0], prediction_idx
+            {k: v[0] for k, v in pattern_scores.items()},
+            infection_score[0],
+            prediction_idx,
+            confidence_val
         )
         
         # Prepare result
@@ -284,8 +360,8 @@ def predict_with_heatmap(image_path, model, class_names):
             "prediction_name": class_names[prediction_idx],
             "confidence": confidence_val,
             "probabilities": probs[0].cpu().detach().numpy().tolist(),
-            "consolidation_score": cons[0].item(),
-            "glass_opacity_score": glass[0].item(),
+            "pattern_scores": {k: v[0].item() for k, v in pattern_scores.items()},
+            "infection_score": infection_score[0].item(),
             "medical_analysis": medical_analysis,
             "heatmap_img": heatmap_img,
             "raw_heatmap": raw_heatmap,
