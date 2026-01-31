@@ -6,6 +6,7 @@ from PIL import Image
 import numpy as np
 import os
 import cv2
+import time
 
 # ------------------
 # Setup
@@ -115,51 +116,29 @@ class SimpleMedicalModel(nn.Module):
 # ------------------
 # Model Loading Function
 # ------------------
-def load_model(model_path="simple_pneumonia_model.pth"):
-    """
-    Load pneumonia detection model from .pth file
-    """
+# ------------------
+# Model Loading Function
+# ------------------
+def load_model(model_path="models/model.pth"):
     print(f"Loading model from: {model_path}")
-    
-    if not os.path.exists(model_path):
-        print(f"❌ Model file not found: {model_path}")
-        print("Please make sure the .pth file is in the same directory")
-        return None, None
-    
-    try:
-        # Create model instance
-        model = SimpleMedicalModel(num_classes=3)
-        
-        # Load checkpoint
-        checkpoint = torch.load(model_path, map_location=device)
-        
-        # Load model state dict
-        model.load_state_dict(checkpoint['model_state_dict'])
-        
-        # Move to device and set to eval mode
-        model = model.to(device)
-        model.eval()
-        
-        print(f"✓ Model loaded successfully")
-        print(f"✓ Validation accuracy from checkpoint: {checkpoint.get('val_acc', 'N/A')}%")
-        print(f"✓ Epoch: {checkpoint.get('epoch', 'N/A')}")
-        
-        class_names = ['Normal', 'Bacterial Pneumonia', 'Viral Pneumonia']
-        
-        return model, class_names
-        
-    except Exception as e:
-        print(f"❌ Error loading model: {e}")
-        print("⚠️ Creating model with random weights")
-        
-        model = SimpleMedicalModel(num_classes=3)
-        model = model.to(device)
-        model.eval()
-        
-        class_names = ['Normal', 'Bacterial Pneumonia', 'Viral Pneumonia']
-        
-        return model, class_names
 
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Model not found at {model_path}")
+
+    model = SimpleMedicalModel(num_classes=3)
+
+    checkpoint = torch.load(model_path, map_location=device)
+    if "model_state_dict" in checkpoint:
+        model.load_state_dict(checkpoint["model_state_dict"])
+    else:
+        model.load_state_dict(checkpoint)
+
+    model.to(device)
+    model.eval()
+
+    class_names = ['Normal', 'Bacterial Pneumonia', 'Viral Pneumonia']
+    return model, class_names
+    
 # ------------------
 # Image Transformations
 # ------------------
@@ -176,32 +155,36 @@ transform = transforms.Compose([
 def generate_heatmap_separate(model, input_tensor, original_img, diagnosis_result):
     """
     Generate Grad-CAM heatmap as a separate image (no overlay)
-    
-    Returns:
-        heatmap_image: RGB heatmap image (224x224)
-        grayscale_cam: Raw grayscale heatmap data
     """
     try:
-        # Get the last convolutional layer from the features
+        # Get the target layer - different for SimpleMedicalModel vs ResNet
         target_layer = None
         
-        # Find the last convolutional layer in the features
-        for module in model.features.modules():
-            if isinstance(module, nn.Conv2d):
-                target_layer = module
+        if hasattr(model, 'features'):
+            # SimpleMedicalModel
+            for module in model.features.modules():
+                if isinstance(module, nn.Conv2d):
+                    target_layer = module
+        else:
+            # Standard ResNet - use layer4
+            target_layer = model.layer4[-1].conv2
         
         if target_layer is None:
             print("⚠️ Could not find convolutional layer for heatmap")
             return None, None
         
-        # Create Grad-CAM wrapper (similar to your original code)
+        # Create Grad-CAM wrapper
         class ModelWrapper(nn.Module):
             def __init__(self, original_model):
                 super().__init__()
                 self.model = original_model
             
             def forward(self, x):
-                output, _, _ = self.model(x)
+                # Handle both model types
+                if hasattr(self.model, 'features') and hasattr(self.model, 'consolidation_detector'):
+                    output, _, _ = self.model(x)
+                else:
+                    output = self.model(x)
                 return output
         
         # Wrap the model
@@ -214,28 +197,38 @@ def generate_heatmap_separate(model, input_tensor, original_img, diagnosis_resul
             from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
             
             cam = GradCAM(model=wrapped_model, target_layers=[target_layer])
-            
-            # Create targets
             targets = [ClassifierOutputTarget(diagnosis_result['prediction'])]
-            
-            # Generate heatmap
             grayscale_cam = cam(input_tensor=input_tensor, targets=targets)
             grayscale_cam = grayscale_cam[0, :]
             
-            # Convert grayscale heatmap to color heatmap
+            # Convert to color heatmap
             heatmap = cv2.applyColorMap(np.uint8(255 * grayscale_cam), cv2.COLORMAP_JET)
-            
-            # Resize to match original image size
             heatmap_resized = cv2.resize(heatmap, (224, 224))
             
             print("✓ Heatmap generated successfully")
+            
+            # Save heatmap
+            os.makedirs("static/heatmaps", exist_ok=True)
+            timestamp = int(time.time() * 1000)
+            heatmap_filename = f"heatmap_{timestamp}.png"
+            heatmap_path = os.path.join("static/heatmaps", heatmap_filename)
+            cv2.imwrite(heatmap_path, heatmap_resized)
+            print(f"✓ Heatmap saved to: {heatmap_path}")
+            
             return heatmap_resized, grayscale_cam
             
         except ImportError:
             print("⚠️ Grad-CAM not installed, creating dummy heatmap")
-            # Create a dummy heatmap for testing
             heatmap = np.zeros((224, 224, 3), dtype=np.uint8)
-            cv2.circle(heatmap, (112, 112), 50, (0, 0, 255), -1)  # Red circle
+            cv2.circle(heatmap, (112, 112), 50, (0, 0, 255), -1)
+            
+            os.makedirs("static/heatmaps", exist_ok=True)
+            timestamp = int(time.time() * 1000)
+            heatmap_filename = f"heatmap_{timestamp}.png"
+            heatmap_path = os.path.join("static/heatmaps", heatmap_filename)
+            cv2.imwrite(heatmap_path, heatmap)
+            print(f"✓ Dummy heatmap saved to: {heatmap_path}")
+            
             return heatmap, None
             
     except Exception as e:
@@ -243,80 +236,76 @@ def generate_heatmap_separate(model, input_tensor, original_img, diagnosis_resul
         import traceback
         traceback.print_exc()
         return None, None
+    
+    
+# ------------------
+# Simple Predict Function (for backward compatibility)
+# ------------------
+def predict(image_path):
+    """
+    Simple predict function for backward compatibility
+    This is the function that the Flask app is trying to import
+    """
+    # Load model
+    model, class_names = load_model()
+    
+    if model is None:
+        print("❌ Model loading failed")
+        return {"label": "Error", "confidence": 0.0}
+    
+    # Use the existing predict_with_heatmap function
+    result = predict_with_heatmap(image_path, model, class_names)
+    
+    if result is None:
+        return {"label": "Error", "confidence": 0.0}
+    
+    # Return in the expected format
+    return {
+        "label": result['prediction_name'],
+        "confidence": result['confidence']
+    }
 
 # ------------------
 # Main Prediction Function (with heatmap)
 # ------------------
 def predict_with_heatmap(image_path, model, class_names):
-    """
-    Predict pneumonia and generate heatmap
-    
-    Args:
-        image_path: Path to the X-ray image
-        model: Loaded SimpleMedicalModel
-        class_names: List of class names
-    
-    Returns:
-        Dictionary with prediction results and heatmap
-    """
-    try:
-        # Load and preprocess image
-        image = Image.open(image_path).convert("RGB")
-        
-        # Store original for visualization
-        original_img = np.array(image.resize((224, 224)))
-        
-        # Transform for model
-        input_tensor = transform(image).unsqueeze(0).to(device)
-        
-        # Forward pass
-        model.eval()
-        with torch.no_grad():
-            output, consolidation_score, glass_opacity_score = model(input_tensor)
-            probs = F.softmax(output, dim=1)
-            
-            confidence, prediction = torch.max(probs, dim=1)
-            confidence = confidence.item()
-            prediction = prediction.item()
-            
-            # Get medical analysis
-            medical_analysis = model.get_medical_analysis(
-                consolidation_score[0],
-                glass_opacity_score[0],
-                prediction
-            )
-        
-        # Generate heatmap (separate image, not overlay)
-        heatmap_image, grayscale_cam = generate_heatmap_separate(
-            model, input_tensor, original_img, 
-            {'prediction': prediction}
+    image = Image.open(image_path).convert("RGB")
+    original_img = np.array(image.resize((224, 224)))
+
+    input_tensor = transform(image).unsqueeze(0).to(device)
+
+    with torch.no_grad():
+        output, consolidation_score, glass_opacity_score = model(input_tensor)
+        probs = F.softmax(output, dim=1)
+
+        confidence, prediction = torch.max(probs, dim=1)
+        confidence = confidence.item()
+        prediction = prediction.item()
+
+        medical_analysis = model.get_medical_analysis(
+            consolidation_score[0],
+            glass_opacity_score[0],
+            prediction
         )
-        
-        # Prepare result dictionary
-        result = {
-            'prediction': prediction,
-            'prediction_name': class_names[prediction],
-            'confidence': confidence,
-            'probs': probs[0].cpu().numpy().tolist(),  # Convert to list for JSON
-            'consolidation_score': float(consolidation_score[0].item()),
-            'glass_opacity_score': float(glass_opacity_score[0].item()),
-            'analysis': medical_analysis,
-            'original_img_base64': None,  # Can be converted to base64 if needed
-            'heatmap_base64': None,       # Can be converted to base64 if needed
-            'heatmap_available': heatmap_image is not None
-        }
-        
-        # Store images if needed (for local display)
-        result['original_img'] = original_img
-        result['heatmap_img'] = heatmap_image
-        
-        return result
-        
-    except Exception as e:
-        print(f"✗ Prediction error: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
+
+    heatmap_img, _ = generate_heatmap_separate(
+        model,
+        input_tensor,
+        original_img,
+        {"prediction": prediction}
+    )
+
+    return {
+        "prediction": prediction,
+        "prediction_name": class_names[prediction],
+        "confidence": confidence,
+        "probs": probs[0].cpu().numpy().tolist(),
+        "consolidation_score": float(consolidation_score[0]),
+        "glass_opacity_score": float(glass_opacity_score[0]),
+        "analysis": medical_analysis,
+        "heatmap_available": heatmap_img is not None
+    }
+    
 
 # ------------------
 # Visualization Function (for testing)
@@ -455,7 +444,7 @@ def test_model():
 # ------------------
 # Main function for API/backend usage
 # ------------------
-def predict_image_api(image_path, model_path="simple_pneumonia_model.pth"):
+def predict_image_api(image_path, model_path="models/model.pth"):
     """
     Predict pneumonia for a single image (API-friendly version)
     
