@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical X-ray Classifier</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🩻</text></svg>">
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Analyzing X-ray Image...</div>
+    </div>
+
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-icon">
+                        <i class="fas fa-stethoscope"></i>
+                    </div>
+                    <div class="logo-text">
+                        <h1>Medical X-ray Classifier</h1>
+                        <p>AI-powered chest X-ray analysis with heatmap visualization</p>
+                    </div>
+                </div>
+                <div class="health-status">
+                    <a href="/health" class="btn btn-secondary" target="_blank">
+                        <i class="fas fa-heartbeat btn-icon"></i>
+                        System Health
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Upload Section -->
+        <section class="upload-section">
+            <h2 class="section-title">
+                <i class="fas fa-upload"></i> Upload X-ray Image
+            </h2>
+            
+            <div class="alert" id="alertBox"></div>
+            
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <div class="upload-text">
+                    <h3>Drag & Drop X-ray Image</h3>
+                    <p>or click to browse files</p>
+                    <p class="file-types">Supported formats: JPG, PNG, BMP, GIF (Max 10MB)</p>
+                </div>
+            </div>
+            
+            <input type="file" class="file-input" id="fileInput" accept="image/*">
+            
+            <div class="file-info" id="fileInfo">
+                <div class="file-name" id="fileName"></div>
+                <img src="" alt="Preview" class="file-preview" id="filePreview">
+            </div>
+            
+            <div class="button-group">
+                <button class="btn btn-primary" id="analyzeBtn" disabled>
+                    <i class="fas fa-search btn-icon"></i>
+                    Analyze X-ray
+                </button>
+                <button class="btn btn-secondary" id="clearBtn">
+                    <i class="fas fa-times btn-icon"></i>
+                    Clear
+                </button>
+            </div>
+            
+            <div class="instructions">
+                <h3><i class="fas fa-info-circle"></i> How to use:</h3>
+                <ol>
+                    <li>Upload a chest X-ray image (AP or PA view recommended)</li>
+                    <li>Click "Analyze X-ray" to process the image</li>
+                    <li>Review the analysis results for pneumonia detection</li>
+                    <li>Use the heatmap overlay to see which areas influenced the AI's decision</li>
+                    <li>For clinical diagnosis, always consult with a medical professional</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section class="results-section">
+            <h2 class="section-title">
+                <i class="fas fa-chart-line"></i> Analysis Results
+            </h2>
+            
+            <div class="results-placeholder" id="resultsPlaceholder">
+                <div class="placeholder-icon">
+                    <i class="fas fa-clipboard-list"></i>
+                </div>
+                <h3>No Analysis Yet</h3>
+                <p>Upload an X-ray image and click "Analyze" to see results here.</p>
+            </div>
+            
+            <div class="results-content" id="resultsContent">
+                <div class="result-card" id="binaryCard">
+                    <div class="result-header">
+                        <div class="result-title">Pneumonia Detection</div>
+                        <div class="result-confidence" id="binaryConfidence">0%</div>
+                    </div>
+                    <div class="result-prediction">
+                        <h3 id="binaryPrediction">--</h3>
+                    </div>
+                    <div class="confidence-value" id="binaryConfidenceValue">0%</div>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" id="binaryConfidenceFill" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div class="result-card" id="subtypeCard" style="display: none;">
+                    <div class="result-header">
+                        <div class="result-title">Pneumonia Subtype</div>
+                        <div class="result-confidence" id="subtypeConfidence">0%</div>
+                    </div>
+                    <div class="result-prediction">
+                        <h3 id="subtypePrediction">--</h3>
+                    </div>
+                    <div class="confidence-value" id="subtypeConfidenceValue">0%</div>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" id="subtypeConfidenceFill" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- NEW: Heatmap Visualization Section -->
+                <div class="heatmap-section" id="heatmapContainer" style="display: none;">
+                    <h3><i class="fas fa-fire"></i> AI Attention Heatmap</h3>
+                    <p class="heatmap-description">This visualization shows which areas of the X-ray most influenced the AI's decision. Red areas indicate higher attention.</p>
+                    
+                    <div class="image-comparison">
+                        <div class="image-container">
+                            <img src="" alt="Original X-ray" class="result-image" id="originalImage">
+                            <div class="heatmap-overlay" id="heatmapOverlay">
+                                <img src="temp_gradcam.png" alt="Heatmap" class="heatmap-image" id="heatmapImage">
+                            </div>
+                        </div>
+                        <div class="image-controls">
+                            <button class="btn btn-secondary" id="heatmapToggle" disabled>
+                                <i class="fas fa-eye"></i> Show Heatmap
+                            </button>
+                            <div class="heatmap-legend">
+                                <div class="legend-item">
+                                    <div class="legend-color low-attention"></div>
+                                    <span>Low Attention</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color high-attention"></div>
+                                    <span>High Attention</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Original uploaded image display (keep this as fallback) -->
+                <div class="uploaded-image-container">
+                    <h3><i class="fas fa-image"></i> Analyzed Image</h3>
+                    <img src="" alt="Uploaded X-ray" class="result-image" id="uploadedImage">
+                </div>
+                
+                <div class="result-timestamp" id="resultTimestamp"></div>
+            </div>
+            
+            <div class="disclaimer">
+                <h3><i class="fas fa-exclamation-triangle"></i> Important Disclaimer</h3>
+                <p>This tool is for educational and research purposes only. It is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of a qualified healthcare provider with any questions you may have regarding a medical condition.</p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>Medical X-ray Classifier v1.1 | AI with Heatmap Visualization</p>
+            <p>Always consult with a healthcare professional for medical diagnosis</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
