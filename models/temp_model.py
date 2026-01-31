@@ -131,7 +131,8 @@ def generate_heatmap_separate(model, input_tensor, original_img, diagnosis_resul
         from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 
         # DenseNet last conv layer
-        target_layer = model.features[-1]
+        target_layer = model.features.denseblock4.denselayer16.conv2
+
 
         class ModelWrapper(nn.Module):
             def __init__(self, m):
@@ -193,10 +194,6 @@ def generate_heatmap_separate(model, input_tensor, original_img, diagnosis_resul
         traceback.print_exc()
         return None, None
 
-
-    except Exception as e:
-        print(f"Heatmap error: {e}")
-        return None, None
 
 
 # =========================================================
