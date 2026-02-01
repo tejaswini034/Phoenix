@@ -17,6 +17,12 @@
     --spacing-md: 1rem;
     --spacing-lg: 2rem;
     --spacing-xl: 3rem;
+    /* Risk level colors */
+    --risk-very-low: #34a853;    /* Green */
+    --risk-low: #8bc34a;         /* Light Green */
+    --risk-moderate: #f9ab00;    /* Orange */
+    --risk-high: #ff9800;        /* Dark Orange */
+    --risk-very-high: #ea4335;   /* Red */
 }
 
 * {
@@ -330,6 +336,46 @@ main {
     font-size: 0.9rem;
 }
 
+.result-risk-badge {
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Risk level badge colors */
+.risk-very-low {
+    background-color: rgba(52, 168, 83, 0.1);
+    color: var(--risk-very-low);
+    border: 1px solid var(--risk-very-low);
+}
+
+.risk-low {
+    background-color: rgba(139, 195, 74, 0.1);
+    color: var(--risk-low);
+    border: 1px solid var(--risk-low);
+}
+
+.risk-moderate {
+    background-color: rgba(249, 171, 0, 0.1);
+    color: var(--risk-moderate);
+    border: 1px solid var(--risk-moderate);
+}
+
+.risk-high {
+    background-color: rgba(255, 152, 0, 0.1);
+    color: var(--risk-high);
+    border: 1px solid var(--risk-high);
+}
+
+.risk-very-high {
+    background-color: rgba(234, 67, 53, 0.1);
+    color: var(--risk-very-high);
+    border: 1px solid var(--risk-very-high);
+}
+
 .confidence-high {
     background-color: rgba(52, 168, 83, 0.1);
     color: var(--success-green);
@@ -367,6 +413,42 @@ main {
     transition: width 1s ease;
 }
 
+/* Risk explanation text */
+.risk-explanation {
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-sm);
+    background-color: rgba(0, 0, 0, 0.02);
+    border-radius: var(--border-radius);
+    font-size: 0.9rem;
+    color: var(--dark-gray);
+}
+
+.risk-explanation p {
+    margin-bottom: 0.5rem;
+}
+
+.risk-explanation i {
+    margin-right: 0.5rem;
+}
+
+/* Heatmap explanation */
+.heatmap-explanation {
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-sm);
+    background-color: rgba(0, 0, 0, 0.02);
+    border-radius: var(--border-radius);
+    font-size: 0.9rem;
+    color: var(--dark-gray);
+}
+
+.heatmap-explanation p {
+    margin-bottom: 0.5rem;
+}
+
+.heatmap-explanation i {
+    margin-right: 0.5rem;
+}
+
 .result-image {
     width: 100%;
     max-height: 300px;
@@ -377,11 +459,33 @@ main {
     border: 1px solid var(--medium-gray);
 }
 
+.uploaded-image-container {
+    background-color: var(--light-gray);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.uploaded-image-container h3 {
+    color: var(--text-dark);
+    margin-bottom: var(--spacing-sm);
+}
+
 .result-timestamp {
     color: var(--dark-gray);
     font-size: 0.9rem;
     margin-top: var(--spacing-md);
     text-align: right;
+}
+
+/* Medical Analysis styling */
+.medical-analysis {
+    white-space: pre-wrap;
+    font-family: inherit;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 5px;
+    line-height: 1.6;
 }
 
 /* Alert Messages */
@@ -406,6 +510,29 @@ main {
     background-color: rgba(52, 168, 83, 0.1);
     border-left: 4px solid var(--success-green);
     color: var(--success-green);
+}
+
+/* Instructions and Disclaimer */
+.instructions, .disclaimer {
+    margin-top: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background-color: var(--light-gray);
+    border-radius: var(--border-radius);
+    border-left: 4px solid var(--warning-orange);
+}
+
+.instructions h3, .disclaimer h3 {
+    color: var(--text-dark);
+    margin-bottom: var(--spacing-sm);
+}
+
+.instructions ol, .disclaimer p {
+    color: var(--dark-gray);
+    margin-left: var(--spacing-md);
+}
+
+.instructions li {
+    margin-bottom: 0.5rem;
 }
 
 /* Footer */
@@ -433,4 +560,98 @@ footer {
     .upload-area {
         padding: var(--spacing-lg);
     }
+    
+    .result-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+    }
+    
+    .result-confidence,
+    .result-risk-badge {
+        align-self: flex-end;
+        margin-top: var(--spacing-sm);
+    }
+}
+
+/* Add to existing style.css, after the existing styles */
+
+/* Color Legend */
+.color-legend {
+    margin-top: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background-color: var(--light-gray);
+    border-radius: var(--border-radius);
+    border-left: 4px solid var(--primary-blue);
+}
+
+.color-legend h3 {
+    color: var(--text-dark);
+    margin-bottom: var(--spacing-md);
+}
+
+.legend-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.legend-color-box {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+/* Confidence color boxes */
+.legend-color-box.confidence-high {
+    background-color: var(--success-green);
+}
+
+.legend-color-box.confidence-medium {
+    background-color: var(--warning-orange);
+}
+
+.legend-color-box.confidence-low {
+    background-color: var(--danger-red);
+}
+
+/* Risk level color boxes */
+.legend-color-box.risk-very-low {
+    background-color: var(--risk-very-low);
+}
+
+.legend-color-box.risk-moderate {
+    background-color: var(--risk-moderate);
+}
+
+.legend-color-box.risk-high {
+    background-color: var(--risk-high);
+}
+
+.legend-text {
+    color: var(--dark-gray);
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.legend-note {
+    padding: var(--spacing-sm);
+    background-color: rgba(0, 0, 0, 0.02);
+    border-radius: var(--border-radius);
+    font-size: 0.85rem;
+    color: var(--dark-gray);
+    margin-top: var(--spacing-md);
+}
+
+.legend-note i {
+    color: var(--primary-blue);
+    margin-right: 0.5rem;
 }

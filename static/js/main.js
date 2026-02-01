@@ -15,13 +15,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const alertBox = document.getElementById('alertBox');
     const binaryPrediction = document.getElementById('binaryPrediction');
     const binaryConfidence = document.getElementById('binaryConfidence');
-    const binaryConfidenceBar = document.getElementById('binaryConfidenceBar');
     const binaryConfidenceFill = document.getElementById('binaryConfidenceFill');
     const subtypeCard = document.getElementById('subtypeCard');
     const subtypePrediction = document.getElementById('subtypePrediction');
     const subtypeConfidence = document.getElementById('subtypeConfidence');
-    const subtypeConfidenceBar = document.getElementById('subtypeConfidenceBar');
     const subtypeConfidenceFill = document.getElementById('subtypeConfidenceFill');
+    const riskCard = document.getElementById('riskCard');
+    const riskLevel = document.getElementById('riskLevel');
+    const riskBadge = document.getElementById('riskBadge');
     const uploadedImage = document.getElementById('uploadedImage');
     const resultTimestamp = document.getElementById('resultTimestamp');
     
@@ -29,6 +30,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const heatmapContainer = document.getElementById('heatmapContainer');
     const heatmapImage = document.getElementById('heatmapImage');
     const medicalAnalysis = document.getElementById('medicalAnalysis');
+    const medicalAnalysisCard = document.getElementById('medicalAnalysisCard');
     
     // Current state
     let currentFile = null;
@@ -160,6 +162,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Display results from backend
     function displayResults(data) {
+        console.log("Received data:", data); // Debug log
+        
         // Update binary prediction
         const binaryPred = data.binary.prediction;
         const binaryConf = data.binary.confidence * 100;
@@ -175,7 +179,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Set card class based on prediction
-        const binaryCard = document.querySelector('.result-card:nth-child(1)');
+        const binaryCard = document.getElementById('binaryCard');
         binaryCard.classList.remove('normal', 'pneumonia');
         binaryCard.classList.add(binaryPred.toLowerCase());
         
@@ -207,6 +211,36 @@ document.addEventListener('DOMContentLoaded', function() {
             subtypeCard.style.display = 'none';
         }
         
+        // Add this function in main.js, in the displayResults function:
+
+// Update risk level if available
+if (data.risk_level) {
+    console.log("Risk level data:", data.risk_level); // Debug log
+    riskLevel.textContent = data.risk_level;
+    riskBadge.textContent = data.risk_level;
+    
+    // Set risk badge color
+    setRiskBadgeColor(riskBadge, data.risk_level);
+    
+    // Update final confidence if available
+    const finalConfidenceValue = document.getElementById('finalConfidenceValue');
+    const finalConfidenceFill = document.getElementById('finalConfidenceFill');
+    
+    if (data.final_confidence && finalConfidenceValue && finalConfidenceFill) {
+        const finalConf = data.final_confidence * 100;
+        finalConfidenceValue.textContent = `${finalConf.toFixed(1)}%`;
+        finalConfidenceFill.style.width = `${finalConf}%`;
+        
+        // Set confidence bar color
+        setConfidenceBarColor(finalConfidenceFill, finalConf);
+    }
+    
+    riskCard.style.display = 'block';
+} else {
+    console.log("No risk level in data"); // Debug log
+    riskCard.style.display = 'none';
+}
+        
         // Update heatmap if available
         if (data.heatmap_available && data.heatmap_url) {
             if (heatmapImage) {
@@ -224,9 +258,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update medical analysis if available
         if (data.medical_analysis && medicalAnalysis) {
             medicalAnalysis.textContent = data.medical_analysis;
-            medicalAnalysis.style.display = 'block';
-        } else if (medicalAnalysis) {
-            medicalAnalysis.style.display = 'none';
+            medicalAnalysisCard.style.display = 'block';
+        } else if (medicalAnalysisCard) {
+            medicalAnalysisCard.style.display = 'none';
         }
         
         // Update uploaded image URL
@@ -243,6 +277,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show results section
         resultsPlaceholder.style.display = 'none';
         resultsContent.classList.add('active');
+
+        
     }
     
     // Helper functions
@@ -265,6 +301,21 @@ document.addEventListener('DOMContentLoaded', function() {
             element.style.backgroundColor = '#f9ab00'; // orange
         } else {
             element.style.backgroundColor = '#ea4335'; // red
+        }
+    }
+    
+    function setRiskBadgeColor(element, riskLevel) {
+        element.classList.remove('risk-very-low', 'risk-moderate', 'risk-high');
+        
+        const risk = riskLevel.toUpperCase();
+        if (risk === 'VERY LOW') {
+            element.classList.add('risk-very-low');
+        } else if (risk === 'MODERATE') {
+            element.classList.add('risk-moderate');
+        } else if (risk === 'HIGH') {
+            element.classList.add('risk-high');
+        } else {
+            element.classList.add('risk-moderate');
         }
     }
     
@@ -291,10 +342,12 @@ document.addEventListener('DOMContentLoaded', function() {
         resultsContent.classList.remove('active');
         resultsPlaceholder.style.display = 'block';
         
-        // Hide heatmap and analysis
+        // Hide all result cards
+        if (subtypeCard) subtypeCard.style.display = 'none';
+        if (riskCard) riskCard.style.display = 'none';
         if (heatmapImage) heatmapImage.style.display = 'none';
         if (heatmapContainer) heatmapContainer.style.display = 'none';
-        if (medicalAnalysis) medicalAnalysis.style.display = 'none';
+        if (medicalAnalysisCard) medicalAnalysisCard.style.display = 'none';
     }
     
     // Initialize

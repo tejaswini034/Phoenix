@@ -121,8 +121,12 @@ def generate_medical_analysis(prediction_data):
     stage2_pred = prediction_data.get('stage2_prediction')
     stage2_conf = prediction_data.get('stage2_confidence', 0)
     final_pred = prediction_data.get('final_prediction')
+    risk_level = prediction_data.get('risk_level', 'UNKNOWN')
     
     analysis = []
+    
+    # Add risk level to analysis
+    analysis.append(f"AI Confidence Risk Level: {risk_level}")
     
     # Stage 1 analysis
     if stage1_pred == "Normal":
@@ -300,7 +304,9 @@ def predict():
                 "consolidation_score": 0,  # Not used in new model
                 "glass_opacity_score": 0,   # Not used in new model
                 "view_type": map_view_type(prediction_data.get('view_type', 0)),
-                "final_prediction": prediction_data.get('final_prediction')
+                "final_prediction": prediction_data.get('final_prediction'),
+                "final_confidence": float(prediction_data.get('final_confidence', 0)),
+                "risk_level": prediction_data.get('risk_level', 'UNKNOWN')
             }
             
             # Add subtype information if available
@@ -315,6 +321,7 @@ def predict():
             if prediction_data.get('stage2_prediction'):
                 print(f"  Stage 2: {prediction_data['stage2_prediction']} ({prediction_data['stage2_confidence']:.2%})")
             print(f"  Final: {prediction_data['final_prediction']}")
+            print(f"  Risk Level: {prediction_data.get('risk_level', 'UNKNOWN')}")
             
         except Exception as model_error:
             print(f"❌ Model error: {model_error}")

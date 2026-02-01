@@ -255,6 +255,8 @@ class PneumoniaInferenceSystem:
             - stage2_prediction: "Bacterial", "Viral", or None
             - stage2_confidence: float or None
             - final_prediction: "Normal", "Bacterial Pneumonia", or "Viral Pneumonia"
+            - final_confidence: float
+            - risk_level: str
             - heatmap_stage1: numpy array or None
             - heatmap_stage2: numpy array or None
         """
@@ -320,6 +322,15 @@ class PneumoniaInferenceSystem:
             else:
                 final_pred = "Pneumonia (type unknown)"
             
+            # Compute final confidence
+            if final_pred == "Normal":
+                final_confidence = stage1_confidence
+            else:
+                final_confidence = stage2_confidence if stage2_confidence is not None else stage1_confidence
+            
+            # Calculate risk level
+            risk_level = diagnosis_risk(final_pred, final_confidence)
+            
             # Resize heatmaps to match original image dimensions
             if heatmap_stage1 is not None:
                 heatmap_stage1 = cv2.resize(
@@ -339,6 +350,8 @@ class PneumoniaInferenceSystem:
                 'stage2_prediction': stage2_pred,
                 'stage2_confidence': float(stage2_confidence) if stage2_confidence else None,
                 'final_prediction': final_pred,
+                'final_confidence': float(final_confidence),
+                'risk_level': risk_level,
                 'heatmap_stage1': heatmap_stage1,
                 'heatmap_stage2': heatmap_stage2,
                 'view_type': view_type
@@ -352,6 +365,8 @@ class PneumoniaInferenceSystem:
                 'stage2_prediction': None,
                 'stage2_confidence': None,
                 'final_prediction': "Error",
+                'final_confidence': 0.0,
+                'risk_level': "HIGH",
                 'heatmap_stage1': None,
                 'heatmap_stage2': None,
                 'view_type': 0,
@@ -388,6 +403,17 @@ def predict_with_heatmap(image_path: str, model_dir: str = "models") -> Dict:
     This function is referenced in app.py.
     """
     return predict_image(image_path, model_dir)
+
+def diagnosis_risk(final_prediction: str, confidence: float) -> str:
+    """
+    AI confidence risk indicator.
+    NOT a clinical risk score.
+    """
+    if final_prediction == "Normal":
+        return "VERY LOW" if confidence >= 0.8 else "MODERATE"
+    else:
+        return "MODERATE" if confidence >= 0.8 else "HIGH"
+
 
 
 # For backward compatibility
