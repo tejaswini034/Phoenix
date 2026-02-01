@@ -274,12 +274,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Update medical analysis if available
-        if (data.medical_analysis && medicalAnalysis) {
+        /*if (data.medical_analysis && medicalAnalysis) {
             medicalAnalysis.textContent = data.medical_analysis;
             medicalAnalysisCard.style.display = 'block';
         } else if (medicalAnalysisCard) {
             medicalAnalysisCard.style.display = 'none';
         }
+        */
         
         // Update uploaded image URL
         if (data.uploaded_image_url) {
