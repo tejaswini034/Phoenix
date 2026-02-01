@@ -114,6 +114,8 @@ def map_view_type(view_type_code):
     }
     return view_mapping.get(view_type_code, "Unknown")
 
+# Update the generate_medical_analysis function in app.py:
+
 def generate_medical_analysis(prediction_data):
     """Generate medical analysis text based on prediction data"""
     stage1_pred = prediction_data.get('stage1_prediction')
@@ -121,59 +123,125 @@ def generate_medical_analysis(prediction_data):
     stage2_pred = prediction_data.get('stage2_prediction')
     stage2_conf = prediction_data.get('stage2_confidence', 0)
     final_pred = prediction_data.get('final_prediction')
+    final_conf = prediction_data.get('final_confidence', 0)
     risk_level = prediction_data.get('risk_level', 'UNKNOWN')
+    view_type = prediction_data.get('view_type', 0)
     
     analysis = []
     
     # Add risk level to analysis
-    analysis.append(f"AI Confidence Risk Level: {risk_level}")
+    analysis.append(f"📊 **AI Confidence Risk Level: {risk_level}**")
+    
+    # Interpret confidence level
+    conf_percentage = final_conf * 100
+    if conf_percentage >= 80:
+        conf_interpretation = "high confidence"
+        conf_color = "🟢 Green"
+    elif conf_percentage >= 60:
+        conf_interpretation = "moderate confidence"
+        conf_color = "🟠 Orange"
+    else:
+        conf_interpretation = "low confidence"
+        conf_color = "🔴 Red"
+    
+    analysis.append(f"🔍 **AI Confidence: {conf_percentage:.1f}%** ({conf_interpretation}, {conf_color} indicator)")
+    
+    # Add confidence interpretation
+    if conf_percentage >= 80:
+        analysis.append("   • The AI shows strong certainty in this prediction")
+    elif conf_percentage >= 60:
+        analysis.append("   • The AI shows reasonable certainty, but some uncertainty exists")
+    else:
+        analysis.append("   • The AI shows significant uncertainty - clinical review strongly advised")
     
     # Stage 1 analysis
     if stage1_pred == "Normal":
-        analysis.append("Normal chest X-ray pattern detected.")
+        analysis.append("✅ **Normal chest X-ray pattern detected.**")
         if stage1_conf >= 0.9:
-            analysis.append("High confidence in normal findings.")
+            analysis.append("   • High confidence in normal radiographic findings")
         elif stage1_conf >= 0.7:
-            analysis.append("Moderate confidence in normal findings.")
+            analysis.append("   • Moderate confidence in normal radiographic findings")
         else:
-            analysis.append("Low confidence in normal findings.")
+            analysis.append("   • Low confidence in normal findings - consider clinical correlation")
     
     elif stage1_pred == "Pneumonia":
-        analysis.append("Pneumonia patterns detected in chest X-ray.")
+        analysis.append("⚠️ **Pneumonia patterns detected in chest X-ray.**")
         if stage1_conf >= 0.9:
-            analysis.append("High probability of pneumonia.")
+            analysis.append("   • High probability of pneumonia based on radiographic features")
         elif stage1_conf >= 0.7:
-            analysis.append("Moderate probability of pneumonia.")
+            analysis.append("   • Moderate probability of pneumonia")
         else:
-            analysis.append("Low probability of pneumonia.")
+            analysis.append("   • Low probability of pneumonia - requires clinical confirmation")
         
         # Stage 2 analysis
         if stage2_pred == "Bacterial":
-            analysis.append("Pattern suggests bacterial pneumonia.")
+            analysis.append("🦠 **Pattern suggests bacterial pneumonia.**")
             if stage2_conf >= 0.8:
-                analysis.append("Strong evidence for bacterial etiology.")
+                analysis.append("   • Strong radiographic evidence for bacterial etiology")
+            else:
+                analysis.append("   • Some evidence for bacterial etiology")
         elif stage2_pred == "Viral":
-            analysis.append("Pattern suggests viral pneumonia.")
+            analysis.append("🦠 **Pattern suggests viral pneumonia.**")
             if stage2_conf >= 0.8:
-                analysis.append("Strong evidence for viral etiology.")
+                analysis.append("   • Strong radiographic evidence for viral etiology")
+            else:
+                analysis.append("   • Some evidence for viral etiology")
         elif stage2_pred is None:
-            analysis.append("Pneumonia type could not be determined.")
+            analysis.append("❓ **Pneumonia type could not be determined with confidence.**")
+    
+    # View type information
+    view_text = map_view_type(view_type)
+    analysis.append(f"📷 **X-ray View: {view_text}**")
+    
+    # Heatmap guidance
+    analysis.append("🔥 **Grad-CAM Heatmap Interpretation:**")
+    analysis.append("   • Red/orange areas show where the AI focused for diagnosis")
+    analysis.append("   • These regions contributed most to the prediction")
+    analysis.append("   • Use heatmap to understand AI's decision-making process")
     
     # Confidence notes
-    if stage1_conf < 0.6:
-        analysis.append("Note: Confidence level is low. Clinical correlation required.")
+    if final_conf < 0.6:
+        analysis.append("🚨 **Important Note:** Confidence level is low. Strong clinical correlation required.")
+    elif final_conf < 0.8:
+        analysis.append("⚠️ **Note:** Moderate confidence level. Clinical correlation recommended.")
     
     # Final recommendation
+    analysis.append("💡 **Recommendation:**")
     if final_pred == "Normal":
-        analysis.append("Recommendation: Routine follow-up.")
+        if conf_percentage >= 80:
+            analysis.append("   • Routine follow-up as per standard protocol")
+        else:
+            analysis.append("   • Consider clinical review despite normal AI reading")
     elif "Bacterial" in final_pred:
-        analysis.append("Recommendation: Consider antibiotic therapy and clinical evaluation.")
+        analysis.append("   • Consider antibiotic therapy and urgent clinical evaluation")
+        if conf_percentage < 70:
+            analysis.append("   • Confirm with additional testing due to moderate confidence")
     elif "Viral" in final_pred:
-        analysis.append("Recommendation: Supportive care and monitoring advised.")
+        analysis.append("   • Supportive care and monitoring advised")
+        analysis.append("   • Consider viral testing for confirmation")
     else:
-        analysis.append("Recommendation: Clinical evaluation recommended.")
+        analysis.append("   • Clinical evaluation recommended for definitive diagnosis")
     
-    return " ".join(analysis)
+    # Color code explanation
+    analysis.append("\n🎨 **Color Code Reference:**")
+    analysis.append("   🟢 ≥80% = High confidence in prediction")
+    analysis.append("   🟠 60-79% = Moderate confidence, some uncertainty")
+    analysis.append("   🔴 <60% = Low confidence, strong clinical review needed")
+    
+    # Risk level explanation
+    analysis.append("\n⚠️ **Risk Level Interpretation:**")
+    analysis.append(f"   • {risk_level} = {get_risk_explanation(risk_level)}")
+    
+    return "\n".join(analysis)
+
+def get_risk_explanation(risk_level):
+    """Get explanation for risk level"""
+    risk_explanations = {
+        'VERY LOW': 'Normal finding with high confidence',
+        'MODERATE': 'Either uncertain normal finding OR pneumonia with high confidence',
+        'HIGH': 'Pneumonia finding with low confidence'
+    }
+    return risk_explanations.get(risk_level, 'Unknown risk level')
 
 @app.route('/')
 def index():

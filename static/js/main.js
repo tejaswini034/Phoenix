@@ -26,6 +26,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const uploadedImage = document.getElementById('uploadedImage');
     const resultTimestamp = document.getElementById('resultTimestamp');
     
+    // New elements for interpretations
+    const binaryInterpretation = document.getElementById('binaryInterpretation');
+    const subtypeInterpretation = document.getElementById('subtypeInterpretation');
+    const finalInterpretation = document.getElementById('finalInterpretation');
+    const finalConfidenceValue = document.getElementById('finalConfidenceValue');
+    const finalConfidenceFill = document.getElementById('finalConfidenceFill');
+    
     // Heatmap elements
     const heatmapContainer = document.getElementById('heatmapContainer');
     const heatmapImage = document.getElementById('heatmapImage');
@@ -178,6 +185,11 @@ document.addEventListener('DOMContentLoaded', function() {
             binaryConfidenceValue.textContent = `${binaryConf.toFixed(1)}%`;
         }
         
+        // Update binary interpretation
+        if (binaryInterpretation) {
+            binaryInterpretation.textContent = getConfidenceInterpretation(binaryConf);
+        }
+        
         // Set card class based on prediction
         const binaryCard = document.getElementById('binaryCard');
         binaryCard.classList.remove('normal', 'pneumonia');
@@ -202,6 +214,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 subtypeConfidenceValue.textContent = `${subtypeConf.toFixed(1)}%`;
             }
             
+            // Update subtype interpretation
+            if (subtypeInterpretation) {
+                subtypeInterpretation.textContent = getConfidenceInterpretation(subtypeConf);
+            }
+            
             // Set confidence color for subtype
             setConfidenceColor(subtypeConfidence, subtypeConf);
             setConfidenceBarColor(subtypeConfidenceFill, subtypeConf);
@@ -211,35 +228,36 @@ document.addEventListener('DOMContentLoaded', function() {
             subtypeCard.style.display = 'none';
         }
         
-        // Add this function in main.js, in the displayResults function:
-
-// Update risk level if available
-if (data.risk_level) {
-    console.log("Risk level data:", data.risk_level); // Debug log
-    riskLevel.textContent = data.risk_level;
-    riskBadge.textContent = data.risk_level;
-    
-    // Set risk badge color
-    setRiskBadgeColor(riskBadge, data.risk_level);
-    
-    // Update final confidence if available
-    const finalConfidenceValue = document.getElementById('finalConfidenceValue');
-    const finalConfidenceFill = document.getElementById('finalConfidenceFill');
-    
-    if (data.final_confidence && finalConfidenceValue && finalConfidenceFill) {
-        const finalConf = data.final_confidence * 100;
-        finalConfidenceValue.textContent = `${finalConf.toFixed(1)}%`;
-        finalConfidenceFill.style.width = `${finalConf}%`;
-        
-        // Set confidence bar color
-        setConfidenceBarColor(finalConfidenceFill, finalConf);
-    }
-    
-    riskCard.style.display = 'block';
-} else {
-    console.log("No risk level in data"); // Debug log
-    riskCard.style.display = 'none';
-}
+        // Update risk level if available - THIS IS THE KEY FIX
+        if (data.risk_level) {
+            console.log("Risk level data:", data.risk_level); // Debug log
+            riskLevel.textContent = data.risk_level;
+            riskBadge.textContent = data.risk_level;
+            
+            // Set risk badge color
+            setRiskBadgeColor(riskBadge, data.risk_level);
+            setRiskBadgeColor(riskLevel, data.risk_level);
+            
+            // Update final confidence if available
+            if (data.final_confidence && finalConfidenceValue && finalConfidenceFill) {
+                const finalConf = data.final_confidence * 100;
+                finalConfidenceValue.textContent = `${finalConf.toFixed(1)}%`;
+                finalConfidenceFill.style.width = `${finalConf}%`;
+                
+                // Set confidence bar color
+                setConfidenceBarColor(finalConfidenceFill, finalConf);
+                
+                // Update final interpretation
+                if (finalInterpretation) {
+                    finalInterpretation.textContent = getConfidenceInterpretation(finalConf);
+                }
+            }
+            
+            riskCard.style.display = 'block';
+        } else {
+            console.log("No risk level in data:", data); // Debug log
+            riskCard.style.display = 'none';
+        }
         
         // Update heatmap if available
         if (data.heatmap_available && data.heatmap_url) {
@@ -277,11 +295,19 @@ if (data.risk_level) {
         // Show results section
         resultsPlaceholder.style.display = 'none';
         resultsContent.classList.add('active');
-
-        
     }
     
     // Helper functions
+    function getConfidenceInterpretation(confidencePercent) {
+        if (confidencePercent >= 80) {
+            return "🟢 High confidence - AI is very certain";
+        } else if (confidencePercent >= 60) {
+            return "🟠 Moderate confidence - Some uncertainty exists";
+        } else {
+            return "🔴 Low confidence - Clinical review strongly advised";
+        }
+    }
+    
     function setConfidenceColor(element, confidence) {
         element.classList.remove('confidence-high', 'confidence-medium', 'confidence-low');
         
@@ -348,6 +374,11 @@ if (data.risk_level) {
         if (heatmapImage) heatmapImage.style.display = 'none';
         if (heatmapContainer) heatmapContainer.style.display = 'none';
         if (medicalAnalysisCard) medicalAnalysisCard.style.display = 'none';
+        
+        // Clear interpretations
+        if (binaryInterpretation) binaryInterpretation.textContent = '';
+        if (subtypeInterpretation) subtypeInterpretation.textContent = '';
+        if (finalInterpretation) finalInterpretation.textContent = '';
     }
     
     // Initialize

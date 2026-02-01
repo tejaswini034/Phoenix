@@ -75,54 +75,24 @@
                 </button>
             </div>
             
-            <!-- Color Legend Section -->
-            <div class="color-legend">
-                <h3><i class="fas fa-palette"></i> Understanding the Results</h3>
-                <div class="legend-items">
-                    <div class="legend-item">
-                        <div class="legend-color-box confidence-high"></div>
-                        <div class="legend-text">
-                            <strong>High Confidence (≥80%)</strong>: AI is very certain about its prediction
-                        </div>
+            <!-- Quick Color Guide -->
+            <div class="quick-guide">
+                <h3><i class="fas fa-lightbulb"></i> Quick Guide</h3>
+                <div class="guide-items">
+                    <div class="guide-item">
+                        <span class="guide-icon">🟢</span>
+                        <span class="guide-text">≥80% = High confidence</span>
                     </div>
-                    <div class="legend-item">
-                        <div class="legend-color-box confidence-medium"></div>
-                        <div class="legend-text">
-                            <strong>Medium Confidence (60-79%)</strong>: AI is moderately certain
-                        </div>
+                    <div class="guide-item">
+                        <span class="guide-icon">🟠</span>
+                        <span class="guide-text">60-79% = Moderate confidence</span>
                     </div>
-                    <div class="legend-item">
-                        <div class="legend-color-box confidence-low"></div>
-                        <div class="legend-text">
-                            <strong>Low Confidence (<60%)</strong>: AI is uncertain - clinical review advised
-                        </div>
+                    <div class="guide-item">
+                        <span class="guide-icon">🔴</span>
+                        <span class="guide-text">&lt;60% = Low confidence</span>
                     </div>
                 </div>
-                
-                <div class="legend-items">
-                    <div class="legend-item">
-                        <div class="legend-color-box risk-very-low"></div>
-                        <div class="legend-text">
-                            <strong>VERY LOW Risk</strong>: Normal finding with high confidence
-                        </div>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color-box risk-moderate"></div>
-                        <div class="legend-text">
-                            <strong>MODERATE Risk</strong>: Either uncertain normal or confident pneumonia
-                        </div>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color-box risk-high"></div>
-                        <div class="legend-text">
-                            <strong>HIGH Risk</strong>: Uncertain pneumonia finding
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="legend-note">
-                    <p><i class="fas fa-info-circle"></i> <strong>Note:</strong> Percentages show AI confidence, not clinical probability. Red areas in heatmaps show where the AI focused.</p>
-                </div>
+                <p class="guide-note"><i class="fas fa-info-circle"></i> Full color interpretation included in analysis results</p>
             </div>
             
             <div class="instructions">
@@ -165,6 +135,7 @@
                     <div class="confidence-bar">
                         <div class="confidence-fill" id="binaryConfidenceFill" style="width: 0%"></div>
                     </div>
+                    <div class="confidence-interpretation" id="binaryInterpretation"></div>
                 </div>
                 
                 <!-- Subtype Results -->
@@ -180,6 +151,7 @@
                     <div class="confidence-bar">
                         <div class="confidence-fill" id="subtypeConfidenceFill" style="width: 0%"></div>
                     </div>
+                    <div class="confidence-interpretation" id="subtypeInterpretation"></div>
                 </div>
                 
                 <!-- Risk Level Results -->
@@ -195,10 +167,7 @@
                     <div class="confidence-bar">
                         <div class="confidence-fill" id="finalConfidenceFill" style="width: 0%"></div>
                     </div>
-                    <div class="risk-explanation">
-                        <p><i class="fas fa-info-circle"></i> <strong>Note:</strong> This is an AI confidence indicator, NOT a clinical risk score</p>
-                        <p><i class="fas fa-exclamation-triangle"></i> Lower confidence = Higher AI uncertainty = Clinical correlation strongly advised</p>
-                    </div>
+                    <div class="confidence-interpretation" id="finalInterpretation"></div>
                 </div>
                 
                 <!-- Heatmap Visualization -->
